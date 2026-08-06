@@ -1,0 +1,24 @@
+# Node / Next.js
+web/node_modules/
+web/.next/
+web/out/
+web/.vercel/
+
+# Python
+worker/__pycache__/
+worker/*.pyc
+worker/.venv/
+worker/.gmgn-home/
+
+# Env files -- never commit real credentials
+.env
+.env.local
+.env.*.local
+web/.env.local
+worker/.env
+
+# Supabase CLI local state (machine-specific, not portable)
+supabase/.temp/
+
+# OS
+.DS_Store
