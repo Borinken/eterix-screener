@@ -24,7 +24,8 @@ jobs:
 
       - name: Apply isolated GMGN config
         run: |
-          GMGN_HOME="$RUNNER_TEMP/gmgn-home" gmgn-cli config --apply "${{ secrets.GMGN_API_KEY }}"
+          mkdir -p "$RUNNER_TEMP/gmgn-home"
+          HOME="$RUNNER_TEMP/gmgn-home" gmgn-cli config --apply "${{ secrets.GMGN_API_KEY }}"
 
       - run: pip install -r worker/requirements.txt
 
@@ -33,5 +34,5 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          GMGN_HOME: ${{ runner.temp }}/gmgn-home
+          GMGN_ISOLATED_HOME: ${{ runner.temp }}/gmgn-home
         run: python screener_worker.py --once

@@ -25,34 +25,43 @@ El worker actúa de buffer: encola pedidos, los procesa a su propio ritmo.
 
 1. Creá un proyecto nuevo en supabase.com (o usá uno que ya tengas, pero
    dedicado a esto — no el de otro proyecto).
-2. SQL Editor → pegá y corré `supabase/schema.sql`.
+2. `supabase link --project-ref <ref>` y `supabase db push` (aplica lo que
+   hay en `supabase/migrations/`).
 3. Settings → API → copiá `Project URL` y el `service_role` key (no el
    `anon` key — lo necesitamos para que el worker y las API routes puedan
    escribir sin pelear con RLS).
 
 ## 2. GMGN key aislada para el worker
 
-`gmgn-cli` guarda su API key en `~/.config/gmgn/.env` -- una ruta atada a
-`$HOME`. El worker fuerza su propio `$HOME` (`worker/.gmgn-home/`, o lo que
-pongas en `GMGN_HOME`) en cada llamada a `gmgn-cli`, así que **nunca puede
-leer ni pisar** la config que ya usa el bot de trading real en la misma
-máquina, aunque corras todo en tu misma compu.
+`gmgn-cli` guarda su API key en `~/.config/gmgn/.env`, resuelto vía
+`os.homedir()` de Node -- confirmado leyendo su código fuente instalado
+(`dist/config.js`), no adivinado. Eso significa que la única variable que
+de verdad lo redirige es `HOME` (no existe ningún `GMGN_HOME` real, pese a
+lo que pueda sugerir el nombre). El worker fuerza su propio `HOME`
+(`worker/.gmgn-home/`, o lo que pongas en `GMGN_ISOLATED_HOME`) en cada
+llamada a `gmgn-cli`, así que **nunca puede leer ni pisar** la config que ya
+usa el bot de trading real en la misma máquina, aunque corras todo en tu
+misma compu.
 
 Desde `worker/`:
 
 ```bash
-GMGN_HOME=./.gmgn-home npx gmgn-cli config
+HOME=./.gmgn-home npx gmgn-cli config
 ```
 
 Esto imprime un link. Abrilo, creá la API key ahí (cuenta separada del bot),
 y después:
 
 ```bash
-GMGN_HOME=./.gmgn-home npx gmgn-cli config --apply <la_api_key_que_te_dio_gmgn>
+HOME=./.gmgn-home npx gmgn-cli config --apply <la_api_key_que_te_dio_gmgn>
 ```
 
 Listo -- `worker/.gmgn-home/` queda con la key aislada (ya está en
 `.gitignore`, nunca se sube a GitHub).
+
+**Si alguna vez ves `GMGN_HOME=...` en un comando (incluido en commits
+viejos de este repo) es un error ya corregido -- esa variable no existe,
+usá `HOME`.
 
 ## 3. Deploy del worker
 

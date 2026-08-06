@@ -26,14 +26,15 @@ from supabase import Client, create_client
 
 GMGN_CLI_BIN = os.environ.get("GMGN_CLI_BIN", "gmgn-cli")
 
-# gmgn-cli reads its own GMGN_HOME env var (NOT $HOME -- verified live
-# 2026-08-07, overriding $HOME alone silently no-ops and falls through to
-# whatever's on the default path) to locate its config. Pointing it at a
-# folder private to this worker means `gmgn-cli config --apply <key>` here
-# can NEVER read or overwrite whatever config a trading bot on the same
-# machine already has under its own default GMGN_HOME.
-GMGN_HOME = os.environ.get("GMGN_HOME", os.path.join(os.path.dirname(__file__), ".gmgn-home"))
-os.makedirs(GMGN_HOME, exist_ok=True)
+# gmgn-cli resolves its config path as os.homedir()/.config/gmgn/.env --
+# confirmed by reading its installed source (dist/config.js: `join(homedir(),
+# ".config", "gmgn", ".env")`), which in Node reads the real $HOME env var.
+# Overriding HOME for this subprocess only means `gmgn-cli config --apply
+# <key>` here writes to a folder private to this worker and can never read
+# or overwrite whatever config a trading bot on the same machine has under
+# its own real $HOME.
+GMGN_ISOLATED_HOME = os.environ.get("GMGN_ISOLATED_HOME", os.path.join(os.path.dirname(__file__), ".gmgn-home"))
+os.makedirs(GMGN_ISOLATED_HOME, exist_ok=True)
 POLL_QUEUE_INTERVAL_SEC = 5.0
 GMGN_CALL_INTERVAL_SEC = 3.0  # gmgn-cli's own leaky-bucket limit -- stay under it
 CLI_TIMEOUT_SEC = 15.0
@@ -60,7 +61,7 @@ async def _run_gmgn_cli(args: list[str]) -> Optional[dict]:
     proc = await asyncio.create_subprocess_exec(
         GMGN_CLI_BIN, *args,
         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-        env={**os.environ, "GMGN_HOME": GMGN_HOME},
+        env={**os.environ, "HOME": GMGN_ISOLATED_HOME},
     )
     try:
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=CLI_TIMEOUT_SEC)
