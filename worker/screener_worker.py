@@ -26,10 +26,12 @@ from supabase import Client, create_client
 
 GMGN_CLI_BIN = os.environ.get("GMGN_CLI_BIN", "gmgn-cli")
 
-# gmgn-cli stores its API key at ~/.config/gmgn/.env -- a path keyed off
-# $HOME. Pointing HOME at a folder private to this worker means `gmgn-cli
-# config --apply <key>` here can NEVER read or overwrite whatever config a
-# trading bot on the same machine already has under its own real $HOME.
+# gmgn-cli reads its own GMGN_HOME env var (NOT $HOME -- verified live
+# 2026-08-07, overriding $HOME alone silently no-ops and falls through to
+# whatever's on the default path) to locate its config. Pointing it at a
+# folder private to this worker means `gmgn-cli config --apply <key>` here
+# can NEVER read or overwrite whatever config a trading bot on the same
+# machine already has under its own default GMGN_HOME.
 GMGN_HOME = os.environ.get("GMGN_HOME", os.path.join(os.path.dirname(__file__), ".gmgn-home"))
 os.makedirs(GMGN_HOME, exist_ok=True)
 POLL_QUEUE_INTERVAL_SEC = 5.0
@@ -58,7 +60,7 @@ async def _run_gmgn_cli(args: list[str]) -> Optional[dict]:
     proc = await asyncio.create_subprocess_exec(
         GMGN_CLI_BIN, *args,
         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-        env={**os.environ, "HOME": GMGN_HOME},
+        env={**os.environ, "GMGN_HOME": GMGN_HOME},
     )
     try:
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=CLI_TIMEOUT_SEC)
