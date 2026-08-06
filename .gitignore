@@ -17,6 +17,9 @@ worker/.gmgn-home/
 web/.env.local
 worker/.env
 
+# Merchant wallet keypair -- holds real funds, never goes in git
+worker/.merchant-wallet-DO-NOT-COMMIT/
+
 # Supabase CLI local state (machine-specific, not portable)
 supabase/.temp/
 

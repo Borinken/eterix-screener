@@ -1,0 +1,37 @@
+name: Screener worker
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  drain-queue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm install -g gmgn-cli
+
+      - name: Apply isolated GMGN config
+        run: |
+          GMGN_HOME="$RUNNER_TEMP/gmgn-home" gmgn-cli config --apply "${{ secrets.GMGN_API_KEY }}"
+
+      - run: pip install -r worker/requirements.txt
+
+      - name: Drain pending scan queue
+        working-directory: worker
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GMGN_HOME: ${{ runner.temp }}/gmgn-home
+        run: python screener_worker.py --once

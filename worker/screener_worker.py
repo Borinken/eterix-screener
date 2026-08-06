@@ -126,10 +126,18 @@ async def process_one(sb: Client, wallet_address: str) -> None:
     }).eq("wallet_address", wallet_address).execute()
 
 
-async def main() -> None:
+MAX_ITEMS_PER_RUN = 20  # a safety cap, not a target -- keeps one CI run bounded
+
+
+async def drain_queue_once() -> None:
+    """Processes whatever's pending right now, then returns. Meant to be
+    invoked on a schedule (GitHub Actions cron every few minutes) rather
+    than run as a persistent process -- there's no free always-on host for
+    a long-lived poller, but a short scheduled job is free and reuses this
+    same code unchanged aside from the loop shape."""
     sb = _supabase()
-    print("Eterix Screener worker started.")
-    while True:
+    processed = 0
+    while processed < MAX_ITEMS_PER_RUN:
         result = (
             sb.table("wallet_scores")
             .select("wallet_address")
@@ -140,20 +148,35 @@ async def main() -> None:
         )
         rows = result.data or []
         if not rows:
-            await asyncio.sleep(POLL_QUEUE_INTERVAL_SEC)
-            continue
+            print(f"Queue empty. Processed {processed} this run.")
+            return
 
         wallet_address = rows[0]["wallet_address"]
         print(f"Scoring {wallet_address}...")
         try:
             await process_one(sb, wallet_address)
-        except Exception as exc:  # noqa: BLE001 -- one bad wallet shouldn't kill the loop
+        except Exception as exc:  # noqa: BLE001 -- one bad wallet shouldn't kill the run
             print(f"Error scoring {wallet_address}: {exc}")
             sb.table("wallet_scores").update({
                 "status": "error", "error_message": str(exc), "completed_at": _now_iso(),
             }).eq("wallet_address", wallet_address).execute()
+        processed += 1
         await asyncio.sleep(GMGN_CALL_INTERVAL_SEC)
+
+    print(f"Hit MAX_ITEMS_PER_RUN ({MAX_ITEMS_PER_RUN}) -- rest stays queued for the next scheduled run.")
+
+
+async def main() -> None:
+    """Persistent-loop mode, for running locally during development."""
+    print("Eterix Screener worker started (persistent mode).")
+    while True:
+        await drain_queue_once()
+        await asyncio.sleep(POLL_QUEUE_INTERVAL_SEC)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import sys
+    if "--once" in sys.argv:
+        asyncio.run(drain_queue_once())
+    else:
+        asyncio.run(main())
