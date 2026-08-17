@@ -1,8 +1,23 @@
-name: Screener worker
+name: Screener worker (manual)
+
+# Manual trigger only.
+#
+# This ran on a 5-minute schedule and failed every time. `gmgn-cli config
+# --apply` needs the keypair generated during registration by `gmgn-cli
+# config`; a fresh runner has no keypair, so applying the key aborts with
+# "keypair.pem not found". Generating a new keypair per run does not help —
+# it would not match the one the API key is registered against.
+#
+# The credential model assumes a host that keeps state between calls, which
+# is also what the architecture calls for: the worker is a long-running
+# process on Railway, Docker or a VPS, holding the queue open and pacing
+# itself against the upstream rate limit. A cron that re-installs the CLI
+# every five minutes was working against that design, not implementing it.
+#
+# Kept as workflow_dispatch so the queue can still be drained on demand from
+# a runner that has been configured manually.
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:
