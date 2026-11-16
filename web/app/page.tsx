@@ -31,7 +31,7 @@ function PaymentPanel({ payUrl, reference, amountSol, onPaid }: {
   useEffect(() => {
     if (!qrRef.current) return;
     qrRef.current.innerHTML = "";
-    const qr = createQR(payUrl, 220, "transparent", "#e8e9ee");
+    const qr = createQR(payUrl, 220, "transparent", "#eef0f6");
     qr.append(qrRef.current);
   }, [payUrl]);
 
@@ -138,17 +138,25 @@ export default function Home() {
 
   return (
     <main>
-      <div className="eyebrow">Eterix Screener</div>
-      <h1>¿Esa wallet se puede copiar de verdad?</h1>
-      <p className="subtitle">
-        La mayoría de las wallets &quot;top&quot; que ves en GMGN, BullX o Axiom tienen gran parte de su PnL en
-        arbitraje atómico — compra y venta en la misma transacción, imposible de replicar con delay. Pegá una
-        wallet de Solana y te decimos qué porcentaje de su historial es realmente copiable.
-      </p>
+      <div className="hero">
+        <div className="eyebrow">Eterix Screener</div>
+        <h1>
+          ¿Esa wallet se puede copiar <em>de verdad</em>?
+        </h1>
+        <p className="subtitle">
+          <strong>Separamos el arbitraje atómico del alpha secuencial.</strong> La mayoría de las wallets
+          &quot;top&quot; que ves en GMGN, BullX o Axiom tienen gran parte de su PnL en arbitraje atómico — compra y
+          venta en la misma transacción, imposible de replicar con delay. Pegá una wallet de Solana y te decimos qué
+          porcentaje de su historial es realmente copiable.
+        </p>
+      </div>
 
       <form onSubmit={submit}>
         <input
           type="text"
+          aria-label="Dirección de wallet en Solana"
+          autoComplete="off"
+          spellCheck={false}
           placeholder="Dirección de wallet en Solana"
           value={wallet}
           onChange={(e) => setWallet(e.target.value)}
@@ -191,6 +199,14 @@ export default function Home() {
             <>
               <div className={`verdict ${verdictFor(row.atomic_pct).className}`}>
                 {verdictFor(row.atomic_pct).label}
+              </div>
+              <div className="split" aria-hidden="true">
+                <i className="atomic" style={{ width: `${Math.min(100, Math.max(0, row.atomic_pct))}%` }} />
+                <i className="alpha" style={{ width: `${Math.min(100, Math.max(0, row.real_alpha_pct ?? 100 - row.atomic_pct))}%` }} />
+              </div>
+              <div className="split-legend" aria-hidden="true">
+                <span>Atómico {row.atomic_pct.toFixed(0)}%</span>
+                <span>Alpha {(row.real_alpha_pct ?? 100 - row.atomic_pct).toFixed(0)}%</span>
               </div>
               <div className="stat-row">
                 <span className="label">Trades analizados</span>
